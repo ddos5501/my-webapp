@@ -1,0 +1,15 @@
+{
+  "name": "stress-appetite-ml-webapp",
+  "private": true,
+  "version": "1.0.0",
+  "description": "실과교육과 24학번 스트레스와 식욕의 상관관계 머신러닝 웹앱 (20230621 이민해, 20240613 박시원)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

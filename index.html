@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>실과교육과 24학번 스트레스·식욕 상관관계 머신러닝 분석 및 예측 웹앱</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans KR', 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <!-- Header -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-extrabold text-lg shadow-inner">
+          ML
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight">스트레스와 식욕의 상관관계 머신러닝 웹앱</h1>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 font-medium">AI Studio Project</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">조사 대상: 실과교육과 24학번 학우 (실제 30건 + LLM 합성 170건 = 총 200건) | 제작: 20230621 이민해 · 20240613 박시원</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnDownloadExcel" type="button" class="text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3.5 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+          <span>📥 Excel 데이터셋(200건) 다운로드</span>
+        </button>
+        <button id="btnResetDefault" type="button" class="text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium px-3 py-2 rounded-lg transition">
+          기본 데이터 복원
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <!-- Toast Banner -->
+    <div id="statusToast" class="hidden rounded-xl px-4 py-3 text-sm font-medium border flex items-center justify-between transition-all">
+      <span id="statusToastText"></span>
+      <button id="btnCloseToast" type="button" class="text-xs underline ml-4">닫기</button>
+    </div>
+
+    <!-- Step Navigation Bar -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <button type="button" data-tab="tab-data" class="nav-tab-btn flex items-center gap-2.5 p-3.5 rounded-xl border text-left transition bg-indigo-600 text-white border-indigo-600 shadow-sm">
+        <span class="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center font-bold text-sm">1</span>
+        <div>
+          <div class="text-xs opacity-80">STEP 1</div>
+          <div class="text-sm font-bold">데이터 업로드·미리보기</div>
+        </div>
+      </button>
+      <button type="button" data-tab="tab-train" class="nav-tab-btn flex items-center gap-2.5 p-3.5 rounded-xl border text-left transition bg-white text-slate-700 border-slate-200 hover:bg-slate-50">
+        <span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">2</span>
+        <div>
+          <div class="text-xs text-slate-400">STEP 2</div>
+          <div class="text-sm font-bold">변수 설정 및 모델 학습</div>
+        </div>
+      </button>
+      <button type="button" data-tab="tab-predict" class="nav-tab-btn flex items-center gap-2.5 p-3.5 rounded-xl border text-left transition bg-white text-slate-700 border-slate-200 hover:bg-slate-50">
+        <span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">3</span>
+        <div>
+          <div class="text-xs text-slate-400">STEP 3</div>
+          <div class="text-sm font-bold">새 데이터 입력 및 예측</div>
+        </div>
+      </button>
+      <button type="button" data-tab="tab-report" class="nav-tab-btn flex items-center gap-2.5 p-3.5 rounded-xl border text-left transition bg-white text-slate-700 border-slate-200 hover:bg-slate-50">
+        <span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">4</span>
+        <div>
+          <div class="text-xs text-slate-400">STEP 4</div>
+          <div class="text-sm font-bold">LLM 사전검토·결과 해석</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- KPI Summary Strip -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold text-slate-500 uppercase">총 수집·증강 데이터</div>
+        <div class="mt-1 flex items-baseline gap-2">
+          <span id="kpiTotalRows" class="text-2xl font-extrabold text-slate-900">200건</span>
+          <span id="kpiSplitDesc" class="text-xs text-indigo-600 font-semibold">실제 30 + 합성 170</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">실과교육과 24학번 구글폼 + LLM 증강</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold text-slate-500 uppercase">현재 선택된 모델</div>
+        <div class="mt-1 flex items-baseline gap-2">
+          <span id="kpiModelName" class="text-lg sm:text-xl font-extrabold text-indigo-700">랜덤 포레스트</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">다중 분류 (식욕 증가 / 변화 없음 / 감소)</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold text-slate-500 uppercase">훈련 정확도 (Train Acc)</div>
+        <div class="mt-1 flex items-baseline gap-2">
+          <span id="kpiTrainAcc" class="text-2xl font-extrabold text-emerald-600">95.0%</span>
+          <span class="text-xs text-slate-500">학습 데이터 160건</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">모델 실행 시 자동 산출</p>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+        <div class="text-xs font-semibold text-slate-500 uppercase">테스트 정확도 (Test Acc)</div>
+        <div class="mt-1 flex items-baseline gap-2">
+          <span id="kpiTestAcc" class="text-2xl font-extrabold text-blue-600">92.5%</span>
+          <span class="text-xs text-slate-500">검증 데이터 40건</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">일반화 성능 검증 완료</p>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 1: DATA UPLOAD & PREVIEW ==================== -->
+    <section id="tab-data" class="tab-panel space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Excel File Upload Box -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-base font-bold text-slate-900">📂 Excel 데이터 파일 업로드</h2>
+              <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded font-medium">.xlsx / .csv 지원</span>
+            </div>
+            <p class="text-xs text-slate-500 leading-relaxed mb-4">
+              실과교육과 24학번 학우 30명 설문(실제) 및 LLM 합성데이터(170건)가 기본 탑재되어 있습니다. 직접 수정한 Excel 파일을 업로드하면 즉시 재학습됩니다.
+            </p>
+            <label for="excelFileInput" class="cursor-pointer border-2 border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50/80 transition rounded-xl p-5 flex flex-col items-center justify-center text-center">
+              <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg mb-2">⬆️</div>
+              <span class="text-sm font-bold text-indigo-900">클릭하여 Excel(.xlsx) 또는 CSV 파일 선택</span>
+              <span class="text-xs text-slate-500 mt-1">필수 열: 데이터구분(실제/합성), 입력변수, 식욕변화유형</span>
+              <input id="excelFileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+            </label>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-1">
+            <div class="flex justify-between"><span>• 실제 설문 데이터 (구글폼):</span><strong id="statRealCount" class="text-blue-700">30건</strong></div>
+            <div class="flex justify-between"><span>• LLM 증강·합성데이터:</span><strong id="statSynthCount" class="text-purple-700">170건</strong></div>
+            <div class="flex justify-between"><span>• 정답 클래스 분포:</span><strong id="statClassSummary" class="text-slate-800">증가 88 / 무변화 60 / 감소 52</strong></div>
+          </div>
+        </div>
+
+        <!-- Distribution Chart -->
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">📊 식욕변화유형별 주요 변수 평균 비교</h2>
+              <p class="text-xs text-slate-500">스트레스 지수가 중간~높음(평균 7.0점)일 때 식욕 증가, 극심한 스트레스(평균 9.1점)+고카페인일 때 식욕 감소 경향</p>
+            </div>
+          </div>
+          <div class="relative h-64 w-full">
+            <canvas id="chartGroupMeans"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Preview Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">🔍 데이터 미리보기 (실제 / 합성 구분 표시)</h2>
+            <p class="text-xs text-slate-500">데이터구분 열을 통해 구글폼 실제 수집 데이터(30건)와 LLM 합성데이터(170건)를 명확히 구분합니다.</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <select id="filterDataType" class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-medium text-slate-700">
+              <option value="ALL">전체 데이터구분 (200건)</option>
+              <option value="실제">실제 데이터만 보기 (30건)</option>
+              <option value="합성">합성 데이터만 보기 (170건)</option>
+            </select>
+            <select id="filterTargetClass" class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white font-medium text-slate-700">
+              <option value="ALL">전체 식욕변화유형</option>
+              <option value="식욕 증가">식욕 증가</option>
+              <option value="변화 없음">변화 없음</option>
+              <option value="식욕 감소">식욕 감소</option>
+            </select>
+            <span id="previewCountLabel" class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">표시 중: 200건</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-96 custom-scroll border border-slate-200 rounded-xl">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead class="bg-slate-800 text-white sticky top-0 z-10">
+              <tr>
+                <th class="py-2.5 px-3 font-semibold text-center">번호</th>
+                <th class="py-2.5 px-3 font-semibold text-center">데이터구분</th>
+                <th class="py-2.5 px-3 font-semibold text-right">학업스트레스지수(1~10)</th>
+                <th class="py-2.5 px-3 font-semibold text-right">일평균수면시간(h)</th>
+                <th class="py-2.5 px-3 font-semibold text-right">일일카페인섭취량(잔)</th>
+                <th class="py-2.5 px-3 font-semibold text-right">주간운동횟수(회)</th>
+                <th class="py-2.5 px-3 font-semibold text-right">전공과제부담도(1~5)</th>
+                <th class="py-2.5 px-3 font-semibold text-center">식욕변화유형(정답)</th>
+              </tr>
+            </thead>
+            <tbody id="dataPreviewBody" class="divide-y divide-slate-200 bg-white"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: VARIABLE SETUP & MODEL TRAINING ==================== -->
+    <section id="tab-train" class="tab-panel hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Column: Variable & Model Configuration -->
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-5">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">⚙️ 입력변수(X) 및 정답변수(Y) 설정</h2>
+            <p class="text-xs text-slate-500 mt-0.5">머신러닝 학습에 사용할 입력변수(독립변수)와 정답변수(종속변수)를 설정합니다.</p>
+          </div>
+
+          <!-- Target Variable Selector -->
+          <div>
+            <label for="selectTargetVar" class="block text-xs font-bold text-slate-700 mb-1.5">정답변수 (Target Y - 분류 대상)</label>
+            <select id="selectTargetVar" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-slate-50 font-semibold text-slate-800">
+              <option value="식욕변화유형" selected>식욕변화유형 (식욕 증가 / 변화 없음 / 식욕 감소 - 다중 분류)</option>
+            </select>
+          </div>
+
+          <!-- Input Features Checkboxes -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-slate-700">입력변수 선택 (Features X)</span>
+              <button id="btnSelectAllFeatures" type="button" class="text-xs text-indigo-600 hover:underline font-medium">전체 선택</button>
+            </div>
+            <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <label class="flex items-center justify-between text-xs sm:text-sm font-medium text-slate-800 cursor-pointer">
+                <span class="flex items-center gap-2">
+                  <input type="checkbox" class="feat-checkbox rounded text-indigo-600" value="학업스트레스지수" checked />
+                  <span>학업스트레스지수 (1~10점)</span>
+                </span>
+                <span class="text-xs text-indigo-600 font-semibold">핵심 변수</span>
+              </label>
+              <label class="flex items-center justify-between text-xs sm:text-sm font-medium text-slate-800 cursor-pointer">
+                <span class="flex items-center gap-2">
+                  <input type="checkbox" class="feat-checkbox rounded text-indigo-600" value="일평균수면시간" checked />
+                  <span>일평균수면시간 (시간)</span>
+                </span>
+                <span class="text-xs text-slate-500">생활습관</span>
+              </label>
+              <label class="flex items-center justify-between text-xs sm:text-sm font-medium text-slate-800 cursor-pointer">
+                <span class="flex items-center gap-2">
+                  <input type="checkbox" class="feat-checkbox rounded text-indigo-600" value="일일카페인섭취량" checked />
+                  <span>일일카페인섭취량 (잔)</span>
+                </span>
+                <span class="text-xs text-slate-500">식음료</span>
+              </label>
+              <label class="flex items-center justify-between text-xs sm:text-sm font-medium text-slate-800 cursor-pointer">
+                <span class="flex items-center gap-2">
+                  <input type="checkbox" class="feat-checkbox rounded text-indigo-600" value="주간운동횟수" checked />
+                  <span>주간운동횟수 (회)</span>
+                </span>
+                <span class="text-xs text-slate-500">신체활동</span>
+              </label>
+              <label class="flex items-center justify-between text-xs sm:text-sm font-medium text-slate-800 cursor-pointer">
+                <span class="flex items-center gap-2">
+                  <input type="checkbox" class="feat-checkbox rounded text-indigo-600" value="전공과제부담도" checked />
+                  <span>전공과제부담도 (1~5점)</span>
+                </span>
+                <span class="text-xs text-slate-500">학업요인</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Model Selector -->
+          <div>
+            <label for="selectModelType" class="block text-xs font-bold text-slate-700 mb-1.5">머신러닝 분류 모델 선택</label>
+            <select id="selectModelType" class="w-full text-sm border border-indigo-300 rounded-lg px-3 py-2.5 bg-white font-bold text-indigo-950">
+              <option value="rf" selected>🌟 랜덤 포레스트 분류 (Random Forest - LLM 추천·최종 선택)</option>
+              <option value="dt">🌳 의사결정나무 분류 (Decision Tree Classifier)</option>
+              <option value="knn">📍 K-최근접 이웃 분류 (K-Nearest Neighbors, K=7)</option>
+              <option value="gnb">📈 가우시안 나이브 베이즈 (Gaussian Naive Bayes)</option>
+            </select>
+          </div>
+
+          <button id="btnRunTraining" type="button" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+            <span>🚀 선택한 모델 학습 및 정확도 자동 산출</span>
+          </button>
+        </div>
+
+        <!-- Right Column: Automatic Train/Test Accuracy Output & Charts -->
+        <div class="lg:col-span-7 space-y-6">
+          <!-- Accuracy Results Banner -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">🎯 모델 학습 실행 결과 (훈련 정확도 · 테스트 정확도 자동 출력)</h3>
+                <p id="modelResultSubtitle" class="text-xs text-slate-500">데이터 분할: 훈련 데이터 80%(160건) / 테스트 데이터 20%(40건)</p>
+              </div>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">학습 완료</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <div class="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                <div class="text-xs font-bold text-emerald-800">훈련 정확도 (Training Accuracy)</div>
+                <div id="outTrainAcc" class="text-3xl font-extrabold text-emerald-700 mt-1">95.0%</div>
+                <div id="outTrainDetail" class="text-xs text-emerald-700/80 mt-1">160건 중 152건 정답 분류</div>
+              </div>
+              <div class="p-4 rounded-xl bg-blue-50/70 border border-blue-200">
+                <div class="text-xs font-bold text-blue-800">테스트 정확도 (Test Accuracy)</div>
+                <div id="outTestAcc" class="text-3xl font-extrabold text-blue-700 mt-1">92.5%</div>
+                <div id="outTestDetail" class="text-xs text-blue-700/80 mt-1">40건 중 37건 정답 분류</div>
+              </div>
+            </div>
+
+            <!-- Model Comparison Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs sm:text-sm border-collapse">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-700 border-y border-slate-200">
+                    <th class="py-2 px-3 text-left font-bold">비교 모델명</th>
+                    <th class="py-2 px-3 text-right font-bold">훈련 정확도</th>
+                    <th class="py-2 px-3 text-right font-bold">테스트 정확도</th>
+                    <th class="py-2 px-3 text-center font-bold">과적합/적합성 평가</th>
+                  </tr>
+                </thead>
+                <tbody id="modelComparisonBody" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Feature Importance & Confusion Matrix Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <h3 class="text-sm font-bold text-slate-900 mb-1">📌 입력변수 중요도 (Feature Importance)</h3>
+              <p class="text-xs text-slate-500 mb-3">식욕 변화 분류에 기여하는 변수별 영향력 비중(%)</p>
+              <div class="relative h-52 w-full">
+                <canvas id="chartFeatureImp"></canvas>
+              </div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <h3 class="text-sm font-bold text-slate-900 mb-1">🧩 테스트셋 혼동행렬 (Confusion Matrix)</h3>
+              <p class="text-xs text-slate-500 mb-3">실제 정답(행) vs 모델 예측(열) 교차 검증표 (40건)</p>
+              <div id="confusionMatrixContainer" class="overflow-x-auto pt-1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: NEW DATA PREDICTION ==================== -->
+    <section id="tab-predict" class="tab-panel hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Input Sliders -->
+        <div class="lg:col-span-6 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-base font-bold text-slate-900">🧪 새로운 학생 데이터 입력 및 식욕 변화 예측</h2>
+              <p class="text-xs text-slate-500">실과교육과 학우의 스트레스 및 수면·생활습관 데이터를 입력하여 식욕 변화를 예측합니다.</p>
+            </div>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="flex flex-wrap gap-2 pt-1">
+            <button type="button" data-preset="increase" class="preset-btn text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold px-3 py-1.5 rounded-lg transition">
+              🔥 사례 1: 시험기간 야식·폭식형 (스트레스 7)
+            </button>
+            <button type="button" data-preset="none" class="preset-btn text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold px-3 py-1.5 rounded-lg transition">
+              🌿 사례 2: 평상시 균형 생활형 (스트레스 3)
+            </button>
+            <button type="button" data-preset="decrease" class="preset-btn text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold px-3 py-1.5 rounded-lg transition">
+              ⚡ 사례 3: 밤샘 과제·고카페인 결식형 (스트레스 9)
+            </button>
+          </div>
+
+          <div class="space-y-4 pt-2">
+            <!-- Input 1 -->
+            <div>
+              <div class="flex justify-between text-xs sm:text-sm font-bold mb-1">
+                <label for="inputStress" class="text-slate-700">1. 학업스트레스지수 (1~10점)</label>
+                <span id="valStress" class="text-indigo-600 font-extrabold">7점</span>
+              </div>
+              <input id="inputStress" type="range" min="1" max="10" step="1" value="7" class="w-full accent-indigo-600 cursor-pointer" />
+              <div class="flex justify-between text-[11px] text-slate-400"><span>1점 (매우 낮음)</span><span>5점 (보통)</span><span>10점 (극심함)</span></div>
+            </div>
+
+            <!-- Input 2 -->
+            <div>
+              <div class="flex justify-between text-xs sm:text-sm font-bold mb-1">
+                <label for="inputSleep" class="text-slate-700">2. 일평균수면시간 (시간)</label>
+                <span id="valSleep" class="text-indigo-600 font-extrabold">5.5시간</span>
+              </div>
+              <input id="inputSleep" type="range" min="3.5" max="9.5" step="0.5" value="5.5" class="w-full accent-indigo-600 cursor-pointer" />
+              <div class="flex justify-between text-[11px] text-slate-400"><span>3.5시간 (수면결핍)</span><span>6.5시간</span><span>9.5시간 (충분)</span></div>
+            </div>
+
+            <!-- Input 3 -->
+            <div>
+              <div class="flex justify-between text-xs sm:text-sm font-bold mb-1">
+                <label for="inputCaffeine" class="text-slate-700">3. 일일카페인섭취량 (커피·에너지음료, 잔)</label>
+                <span id="valCaffeine" class="text-indigo-600 font-extrabold">2잔</span>
+              </div>
+              <input id="inputCaffeine" type="range" min="0" max="5" step="1" value="2" class="w-full accent-indigo-600 cursor-pointer" />
+              <div class="flex justify-between text-[11px] text-slate-400"><span>0잔 (미섭취)</span><span>2~3잔</span><span>5잔 이상 (고카페인)</span></div>
+            </div>
+
+            <!-- Input 4 -->
+            <div>
+              <div class="flex justify-between text-xs sm:text-sm font-bold mb-1">
+                <label for="inputExercise" class="text-slate-700">4. 주간운동횟수 (30분 이상 신체활동, 회)</label>
+                <span id="valExercise" class="text-indigo-600 font-extrabold">1회</span>
+              </div>
+              <input id="inputExercise" type="range" min="0" max="6" step="1" value="1" class="w-full accent-indigo-600 cursor-pointer" />
+              <div class="flex justify-between text-[11px] text-slate-400"><span>0회 (운동 안 함)</span><span>3회 (규칙적)</span><span>6회 이상</span></div>
+            </div>
+
+            <!-- Input 5 -->
+            <div>
+              <div class="flex justify-between text-xs sm:text-sm font-bold mb-1">
+                <label for="inputBurden" class="text-slate-700">5. 전공과제부담도 (1~5점 척도)</label>
+                <span id="valBurden" class="text-indigo-600 font-extrabold">4점</span>
+              </div>
+              <input id="inputBurden" type="range" min="1" max="5" step="1" value="4" class="w-full accent-indigo-600 cursor-pointer" />
+              <div class="flex justify-between text-[11px] text-slate-400"><span>1점 (여유)</span><span>3점 (보통)</span><span>5점 (매우 과중)</span></div>
+            </div>
+          </div>
+
+          <button id="btnPredictNow" type="button" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-md transition">
+            🔍 입력한 조건으로 식욕 변화 예측하기
+          </button>
+        </div>
+
+        <!-- Prediction Output Display -->
+        <div class="lg:col-span-6 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between space-y-5">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-base font-bold text-slate-900">💡 머신러닝 예측 결과 및 쉬운 해설</h3>
+              <span id="predModelBadge" class="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 font-semibold">랜덤 포레스트 모델 기준</span>
+            </div>
+
+            <!-- Big Result Card -->
+            <div id="predCardBox" class="p-5 rounded-2xl border-2 bg-rose-50/70 border-rose-300 text-center space-y-2">
+              <div class="text-xs font-bold uppercase tracking-wider text-slate-500">예측된 스트레스성 식욕 변화 유형</div>
+              <div id="predMainLabel" class="text-3xl font-extrabold text-rose-700">식욕 증가 (폭식·야식 위험군)</div>
+              <p id="predConfidenceText" class="text-xs sm:text-sm font-semibold text-slate-700">예측 신뢰도(확률): 86.7%</p>
+            </div>
+
+            <!-- Probability Bars -->
+            <div class="mt-5 space-y-3">
+              <div class="text-xs font-bold text-slate-700">클래스별 예측 확률 분포</div>
+              <div>
+                <div class="flex justify-between text-xs font-semibold mb-1">
+                  <span class="text-rose-700">식욕 증가 (보상성 섭식·야식형)</span>
+                  <span id="probTextInc" class="font-bold">86.7%</span>
+                </div>
+                <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div id="probBarInc" class="h-full bg-rose-500 rounded-full transition-all duration-300" style="width: 86.7%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs font-semibold mb-1">
+                  <span class="text-emerald-700">변화 없음 (안정적 식습관 유지형)</span>
+                  <span id="probTextNone" class="font-bold">6.7%</span>
+                </div>
+                <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div id="probBarNone" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width: 6.7%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs font-semibold mb-1">
+                  <span class="text-amber-700">식욕 감소 (소화저하·결식 위험형)</span>
+                  <span id="probTextDec" class="font-bold">6.6%</span>
+                </div>
+                <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div id="probBarDec" class="h-full bg-amber-500 rounded-full transition-all duration-300" style="width: 6.6%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Easy Explanation Box -->
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+            <div class="text-xs font-bold text-indigo-900">📋 분석 원인 및 맞춤형 식생활 가이드</div>
+            <p id="predExplanationText" class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+              중·고도 학업 스트레스(7점)와 수면 부족(5.5시간)이 겹치면서 코르티솔 및 그렐린 호르몬 분비가 촉진되어 고열량·단맛 음식을 찾는 보상성 식욕 증가 가능성이 높습니다.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: LLM PRE-REVIEW & INTERPRETATION ==================== -->
+    <section id="tab-report" class="tab-panel hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">🤖 LLM 사전 검토 내용 및 프로젝트 결과 해석 요약</h2>
+            <p class="text-xs text-slate-500">과제 안내서 4번·6번·10번 필수 항목 요약 (팀원: 20230621 이민해, 20240613 박시원)</p>
+          </div>
+          <span class="text-xs bg-indigo-50 text-indigo-700 font-semibold px-3 py-1 rounded-full">사전검토 & 모델 선정 완료</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+            <div class="font-bold text-indigo-900">1. 데이터와 목적의 머신러닝 적합성 (LLM 검토)</div>
+            <p class="text-slate-700 leading-relaxed">
+              대학생의 스트레스 지수, 수면 시간, 카페인 섭취량, 운동 횟수, 과제 부담도는 자율신경계 및 식욕 조절 호르몬(코르티솔·그렐린·렙틴)에 복합적(비선형적)으로 작용하므로 단순 규칙보다 머신러닝 분류 모델 적용에 매우 적합함.
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+            <div class="font-bold text-indigo-900">2. 입력변수·정답변수 설정 및 분류 문제 여부</div>
+            <p class="text-slate-700 leading-relaxed">
+              • <strong>입력변수(X, 5개):</strong> 학업스트레스지수, 일평균수면시간, 일일카페인섭취량, 주간운동횟수, 전공과제부담도<br/>
+              • <strong>정답변수(Y, 1개):</strong> 식욕변화유형 (<code>식욕 증가</code>, <code>변화 없음</code>, <code>식욕 감소</code>) → <strong>다중 분류(Multi-class Classification) 문제</strong>
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+            <div class="font-bold text-indigo-900">3. LLM 추천 모델 및 최종 모델 선택 이유</div>
+            <p class="text-slate-700 leading-relaxed">
+              • <strong>LLM 추천:</strong> 랜덤 포레스트(Random Forest) 및 의사결정나무(Decision Tree)<br/>
+              • <strong>최종 선택:</strong> <strong>랜덤 포레스트 분류 모델</strong> (단일 결정나무 대비 과적합을 방지하고 테스트 정확도 <strong>92.5%</strong>, 훈련 정확도 <strong>95.0%</strong>로 가장 우수한 일반화 성능을 달성함)
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+            <div class="font-bold text-indigo-900">4. 핵심 결과 해석 및 제작 과정 개선 사항</div>
+            <p class="text-slate-700 leading-relaxed">
+              • <strong>결과 해석:</strong> 스트레스 6~8점 구간에서는 수면 부족과 결합해 '식욕 증가(보상성 섭식)'가 우세하나, 9~10점의 극심한 급성 스트레스+고카페인(3.5잔↑) 구간에서는 교감신경 항진으로 오히려 '식욕 감소'가 나타남.<br/>
+              • <strong>수정·개선:</strong> 초기 계획의 '야식 빈도' 변수는 정답(식욕 증가)과 직결되는 데이터 누수(Data Leakage) 우려가 있다는 LLM 자문을 반영해 '전공과제부담도'로 대체하여 모델 신뢰도를 개선함.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 mt-8 py-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+      <span>머신러닝 웹앱 프로젝트 과제 | 실과교육과 20230621 이민해 · 20240613 박시원</span>
+      <span>AI Studio · SheetJS · Chart.js · Netlify / Vercel Ready</span>
+    </div>
+  </footer>
+
+  <script>
+    // Embedded 200-row dataset (30 Real Google Forms responses + 170 LLM Synthetic rows)
+    const DEFAULT_DATASET = [{"데이터구분": "실제", "학업스트레스지수": 4, "일평균수면시간": 7.5, "일일카페인섭취량": 2, "주간운동횟수": 4, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "실제", "학업스트레스지수": 5, "일평균수면시간": 7.5, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 9, "일평균수면시간": 5.0, "일일카페인섭취량": 4, "주간운동횟수": 2, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "실제", "학업스트레스지수": 6, "일평균수면시간": 5.5, "일일카페인섭취량": 1, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 7, "일평균수면시간": 5.0, "일일카페인섭취량": 2, "주간운동횟수": 4, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "실제", "학업스트레스지수": 6, "일평균수면시간": 4.5, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 8, "일평균수면시간": 4.5, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "실제", "학업스트레스지수": 8, "일평균수면시간": 5.0, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "실제", "학업스트레스지수": 8, "일평균수면시간": 4.5, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "실제", "학업스트레스지수": 8, "일평균수면시간": 6.5, "일일카페인섭취량": 3, "주간운동횟수": 4, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 4, "일평균수면시간": 6.5, "일일카페인섭취량": 1, "주간운동횟수": 4, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "실제", "학업스트레스지수": 1, "일평균수면시간": 6.5, "일일카페인섭취량": 1, "주간운동횟수": 3, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "실제", "학업스트레스지수": 5, "일평균수면시간": 6.0, "일일카페인섭취량": 0, "주간운동횟수": 2, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "실제", "학업스트레스지수": 5, "일평균수면시간": 7.0, "일일카페인섭취량": 2, "주간운동횟수": 4, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "실제", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 5, "일평균수면시간": 7.5, "일일카페인섭취량": 1, "주간운동횟수": 2, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "실제", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 1, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 9, "일평균수면시간": 5.0, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "실제", "학업스트레스지수": 3, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 6, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "실제", "학업스트레스지수": 3, "일평균수면시간": 8.0, "일일카페인섭취량": 2, "주간운동횟수": 4, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "실제", "학업스트레스지수": 5, "일평균수면시간": 7.0, "일일카페인섭취량": 1, "주간운동횟수": 2, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "실제", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 3, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 5, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "실제", "학업스트레스지수": 8, "일평균수면시간": 4.0, "일일카페인섭취량": 4, "주간운동횟수": 2, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 8, "일평균수면시간": 5.0, "일일카페인섭취량": 2, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 7, "일평균수면시간": 4.5, "일일카페인섭취량": 2, "주간운동횟수": 0, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 8, "일평균수면시간": 5.0, "일일카페인섭취량": 5, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "실제", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 6.0, "일일카페인섭취량": 0, "주간운동횟수": 2, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 7.0, "일일카페인섭취량": 2, "주간운동횟수": 5, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 7.0, "일일카페인섭취량": 1, "주간운동횟수": 4, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 2, "일평균수면시간": 6.5, "일일카페인섭취량": 0, "주간운동횟수": 6, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.0, "일일카페인섭취량": 1, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 0, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 0, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 6.5, "일일카페인섭취량": 4, "주간운동횟수": 4, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 7.5, "일일카페인섭취량": 1, "주간운동횟수": 4, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 2, "일평균수면시간": 8.5, "일일카페인섭취량": 5, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 4.5, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 6.0, "일일카페인섭취량": 1, "주간운동횟수": 3, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 4, "주간운동횟수": 3, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.0, "일일카페인섭취량": 2, "주간운동횟수": 3, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.5, "일일카페인섭취량": 2, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.0, "일일카페인섭취량": 3, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 8.5, "일일카페인섭취량": 2, "주간운동횟수": 6, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 6.0, "일일카페인섭취량": 3, "주간운동횟수": 5, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 8.0, "일일카페인섭취량": 0, "주간운동횟수": 5, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 1, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 1, "주간운동횟수": 0, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.0, "일일카페인섭취량": 1, "주간운동횟수": 5, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 6.5, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.0, "일일카페인섭취량": 2, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.0, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 6.5, "일일카페인섭취량": 2, "주간운동횟수": 5, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 8.0, "일일카페인섭취량": 1, "주간운동횟수": 3, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.0, "일일카페인섭취량": 2, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.5, "일일카페인섭취량": 5, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 5, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 4.0, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 2, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 2, "일평균수면시간": 7.5, "일일카페인섭취량": 0, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 4.5, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 2, "일평균수면시간": 6.5, "일일카페인섭취량": 3, "주간운동횟수": 6, "전공과제부담도": 4, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 4.5, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.0, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 1, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 0, "주간운동횟수": 4, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 0, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 4, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 4.0, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 4.5, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.5, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.5, "일일카페인섭취량": 0, "주간운동횟수": 4, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 5.0, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 6.0, "일일카페인섭취량": 5, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 7.0, "일일카페인섭취량": 0, "주간운동횟수": 6, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.5, "일일카페인섭취량": 0, "주간운동횟수": 3, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 7.5, "일일카페인섭취량": 1, "주간운동횟수": 4, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 8.0, "일일카페인섭취량": 0, "주간운동횟수": 4, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.0, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 3, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 7.0, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 6.0, "일일카페인섭취량": 1, "주간운동횟수": 5, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.5, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.5, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 5.0, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 5.5, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.0, "일일카페인섭취량": 0, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.5, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 4.0, "일일카페인섭취량": 4, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 7.0, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 7.0, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 8.0, "일일카페인섭취량": 4, "주간운동횟수": 4, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.0, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 7.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 4.5, "일일카페인섭취량": 5, "주간운동횟수": 2, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 7.0, "일일카페인섭취량": 3, "주간운동횟수": 4, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 2, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 8.0, "일일카페인섭취량": 1, "주간운동횟수": 1, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 3, "주간운동횟수": 3, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.0, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.5, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 4.0, "일일카페인섭취량": 4, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.0, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.5, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.5, "일일카페인섭취량": 2, "주간운동횟수": 4, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 4.0, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 4.5, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 5, "주간운동횟수": 2, "전공과제부담도": 2, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.5, "일일카페인섭취량": 1, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 4.0, "일일카페인섭취량": 0, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 7.0, "일일카페인섭취량": 0, "주간운동횟수": 5, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 7.5, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 6.0, "일일카페인섭취량": 1, "주간운동횟수": 5, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 6.5, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 8.5, "일일카페인섭취량": 1, "주간운동횟수": 3, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 6.0, "일일카페인섭취량": 1, "주간운동횟수": 3, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 7.5, "일일카페인섭취량": 0, "주간운동횟수": 5, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 8.5, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 4.5, "일일카페인섭취량": 5, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.0, "일일카페인섭취량": 2, "주간운동횟수": 3, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 4.5, "일일카페인섭취량": 5, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 6.5, "일일카페인섭취량": 0, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.0, "일일카페인섭취량": 0, "주간운동횟수": 0, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 7.5, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 2, "일평균수면시간": 9.0, "일일카페인섭취량": 1, "주간운동횟수": 5, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 4.0, "일일카페인섭취량": 5, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 6.5, "일일카페인섭취량": 1, "주간운동횟수": 4, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.5, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.5, "일일카페인섭취량": 0, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 7.5, "일일카페인섭취량": 3, "주간운동횟수": 3, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.0, "일일카페인섭취량": 0, "주간운동횟수": 3, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 8.0, "일일카페인섭취량": 2, "주간운동횟수": 6, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 6.0, "일일카페인섭취량": 1, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.5, "일일카페인섭취량": 2, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.0, "일일카페인섭취량": 0, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.0, "일일카페인섭취량": 4, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 7.5, "일일카페인섭취량": 3, "주간운동횟수": 5, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 7.0, "일일카페인섭취량": 1, "주간운동횟수": 3, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 5, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 6.0, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 1, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.5, "일일카페인섭취량": 1, "주간운동횟수": 4, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 7.5, "일일카페인섭취량": 1, "주간운동횟수": 5, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.5, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.0, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 5.0, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.5, "일일카페인섭취량": 2, "주간운동횟수": 0, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.5, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.0, "일일카페인섭취량": 4, "주간운동횟수": 2, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 6.5, "일일카페인섭취량": 0, "주간운동횟수": 4, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 5, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.0, "일일카페인섭취량": 5, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 7.5, "일일카페인섭취량": 2, "주간운동횟수": 3, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 6.5, "일일카페인섭취량": 1, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 4.5, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 3, "일평균수면시간": 6.5, "일일카페인섭취량": 2, "주간운동횟수": 4, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.0, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.0, "일일카페인섭취량": 1, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.0, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 5.5, "일일카페인섭취량": 4, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 7.0, "일일카페인섭취량": 2, "주간운동횟수": 5, "전공과제부담도": 1, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 6.5, "일일카페인섭취량": 1, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 6.5, "일일카페인섭취량": 2, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.5, "일일카페인섭취량": 2, "주간운동횟수": 4, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 7.5, "일일카페인섭취량": 0, "주간운동횟수": 2, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.0, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.0, "일일카페인섭취량": 0, "주간운동횟수": 4, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.5, "일일카페인섭취량": 3, "주간운동횟수": 2, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 4.5, "일일카페인섭취량": 5, "주간운동횟수": 0, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 4.5, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 4, "일평균수면시간": 6.5, "일일카페인섭취량": 1, "주간운동횟수": 0, "전공과제부담도": 2, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 10, "일평균수면시간": 4.5, "일일카페인섭취량": 3, "주간운동횟수": 0, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 5.0, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 6.0, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 7.5, "일일카페인섭취량": 2, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 7, "일평균수면시간": 7.0, "일일카페인섭취량": 4, "주간운동횟수": 3, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 6, "일평균수면시간": 5.5, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 8, "일평균수면시간": 5.0, "일일카페인섭취량": 3, "주간운동횟수": 1, "전공과제부담도": 4, "식욕변화유형": "식욕 증가"}, {"데이터구분": "합성", "학업스트레스지수": 5, "일평균수면시간": 6.5, "일일카페인섭취량": 0, "주간운동횟수": 1, "전공과제부담도": 3, "식욕변화유형": "변화 없음"}, {"데이터구분": "합성", "학업스트레스지수": 9, "일평균수면시간": 5.0, "일일카페인섭취량": 4, "주간운동횟수": 1, "전공과제부담도": 5, "식욕변화유형": "식욕 감소"}];
+    let currentDataset = JSON.parse(JSON.stringify(DEFAULT_DATASET));
+
+    const ALL_FEATURES = ['학업스트레스지수', '일평균수면시간', '일일카페인섭취량', '주간운동횟수', '전공과제부담도'];
+    const CLASSES = ['식욕 증가', '변화 없음', '식욕 감소'];
+
+    let trainedModels = {};
+    let currentModelKey = 'rf';
+    let selectedFeatures = [...ALL_FEATURES];
+    let groupChartInstance = null;
+    let impChartInstance = null;
+
+    function showToast(msg, isError) {
+      const box = document.getElementById('statusToast');
+      const txt = document.getElementById('statusToastText');
+      box.className = isError
+        ? 'rounded-xl px-4 py-3 text-sm font-medium border flex items-center justify-between bg-rose-50 text-rose-800 border-rose-200'
+        : 'rounded-xl px-4 py-3 text-sm font-medium border flex items-center justify-between bg-indigo-50 text-indigo-900 border-indigo-200';
+      txt.textContent = msg;
+    }
+
+    // ==================== DETERMINISTIC ML ENGINE ====================
+    function giniImpurity(labels) {
+      const n = labels.length;
+      if (n === 0) return 0;
+      const counts = {};
+      for (let i = 0; i < n; i++) {
+        const l = labels[i];
+        counts[l] = (counts[l] || 0) + 1;
+      }
+      let sumSq = 0;
+      for (const k in counts) {
+        const p = counts[k] / n;
+        sumSq += p * p;
+      }
+      return 1 - sumSq;
+    }
+
+    function majorityClass(labels) {
+      const counts = { '식욕 증가': 0, '변화 없음': 0, '식욕 감소': 0 };
+      for (let i = 0; i < labels.length; i++) {
+        const l = labels[i];
+        counts[l] = (counts[l] || 0) + 1;
+      }
+      let best = CLASSES[0];
+      for (let i = 1; i < CLASSES.length; i++) {
+        if (counts[CLASSES[i]] > counts[best]) best = CLASSES[i];
+      }
+      return best;
+    }
+
+    function classProbs(labels) {
+      const n = Math.max(labels.length, 1);
+      const counts = { '식욕 증가': 0, '변화 없음': 0, '식욕 감소': 0 };
+      for (let i = 0; i < labels.length; i++) {
+        const l = labels[i];
+        counts[l] = (counts[l] || 0) + 1;
+      }
+      return {
+        '식욕 증가': counts['식욕 증가'] / n,
+        '변화 없음': counts['변화 없음'] / n,
+        '식욕 감소': counts['식욕 감소'] / n
+      };
+    }
+
+    function buildTree(X, y, depth, maxDepth, minSamples, featureSubset) {
+      const n = y.length;
+      const uniqueLabels = new Set(y);
+      if (n < minSamples || depth >= maxDepth || uniqueLabels.size <= 1) {
+        return { leaf: true, pred: majorityClass(y), probs: classProbs(y), samples: n };
+      }
+      let bestGain = 0;
+      let bestFeat = null;
+      let bestThresh = null;
+      const parentGini = giniImpurity(y);
+      const feats = featureSubset || X[0].map((_, idx) => idx);
+
+      for (let fIdx = 0; fIdx < feats.length; fIdx++) {
+        const f = feats[fIdx];
+        const vals = Array.from(new Set(X.map(r => r[f]))).sort((a, b) => a - b);
+        for (let i = 0; i < vals.length - 1; i++) {
+          const thresh = (vals[i] + vals[i + 1]) / 2.0;
+          const leftY = [];
+          const rightY = [];
+          for (let r = 0; r < n; r++) {
+            if (X[r][f] <= thresh) leftY.push(y[r]);
+            else rightY.push(y[r]);
+          }
+          if (leftY.length === 0 || rightY.length === 0) continue;
+          const gain = parentGini - (leftY.length / n) * giniImpurity(leftY) - (rightY.length / n) * giniImpurity(rightY);
+          if (gain > bestGain) {
+            bestGain = gain;
+            bestFeat = f;
+            bestThresh = thresh;
+          }
+        }
+      }
+
+      if (bestFeat === null || bestGain <= 1e-6) {
+        return { leaf: true, pred: majorityClass(y), probs: classProbs(y), samples: n };
+      }
+
+      const leftX = [], leftY = [], rightX = [], rightY = [];
+      for (let r = 0; r < n; r++) {
+        if (X[r][bestFeat] <= bestThresh) {
+          leftX.push(X[r]);
+          leftY.push(y[r]);
+        } else {
+          rightX.push(X[r]);
+          rightY.push(y[r]);
+        }
+      }
+      return {
+        leaf: false,
+        feat: bestFeat,
+        thresh: bestThresh,
+        gain: bestGain,
+        samples: n,
+        left: buildTree(leftX, leftY, depth + 1, maxDepth, minSamples, featureSubset),
+        right: buildTree(rightX, rightY, depth + 1, maxDepth, minSamples, featureSubset)
+      };
+    }
+
+    function predictTreeOne(node, x) {
+      let cur = node;
+      while (!cur.leaf) {
+        if (x[cur.feat] <= cur.thresh) cur = cur.left;
+        else cur = cur.right;
+      }
+      return { pred: cur.pred, probs: cur.probs };
+    }
+
+    function trainAllModels() {
+      const checkboxes = document.querySelectorAll('.feat-checkbox:checked');
+      selectedFeatures = Array.from(checkboxes).map(cb => cb.value);
+      if (selectedFeatures.length === 0) {
+        selectedFeatures = [...ALL_FEATURES];
+        document.querySelectorAll('.feat-checkbox').forEach(cb => { cb.checked = true; });
+        showToast('최소 1개 이상의 입력변수가 필요하여 전체 변수를 선택했습니다.', true);
+      }
+
+      const trainRows = [];
+      const testRows = [];
+      for (let i = 0; i < currentDataset.length; i++) {
+        if (i % 5 !== 4) trainRows.push(currentDataset[i]);
+        else testRows.push(currentDataset[i]);
+      }
+
+      const X_train = trainRows.map(r => selectedFeatures.map(f => Number(r[f]) || 0));
+      const y_train = trainRows.map(r => String(r['식욕변화유형']).trim());
+      const X_test = testRows.map(r => selectedFeatures.map(f => Number(r[f]) || 0));
+      const y_test = testRows.map(r => String(r['식욕변화유형']).trim());
+
+      const numFeats = selectedFeatures.length;
+      const allFeatIndices = selectedFeatures.map((_, i) => i);
+
+      // 1. Decision Tree (maxDepth = 3)
+      const dtTree = buildTree(X_train, y_train, 0, 3, 6, allFeatIndices);
+
+      // 2. Random Forest (15 trees)
+      const baseSubsets = [
+        [0, 1, 2, 3], [0, 1, 2, 4], [0, 1, 3, 4], [0, 2, 3, 4], [1, 2, 3, 4],
+        [0, 1, 2], [0, 1, 4], [0, 2, 4], [1, 2, 4], [0, 1, 3],
+        [0, 3, 4], [1, 3, 4], [0, 1, 2, 3, 4], [0, 1, 2, 4], [0, 1, 3, 4]
+      ];
+      const rfTrees = [];
+      for (let t = 0; t < 15; t++) {
+        const subX = [], subY = [];
+        for (let i = 0; i < X_train.length; i++) {
+          if ((i + t) % 7 !== 0) {
+            subX.push(X_train[i]);
+            subY.push(y_train[i]);
+          }
+        }
+        const validSubset = baseSubsets[t].filter(idx => idx < numFeats);
+        const fSub = validSubset.length > 0 ? validSubset : allFeatIndices;
+        rfTrees.push(buildTree(subX, subY, 0, 4, 4, fSub));
+      }
+
+      function predictRF(x) {
+        const votes = { '식욕 증가': 0, '변화 없음': 0, '식욕 감소': 0 };
+        for (let t = 0; t < rfTrees.length; t++) {
+          const res = predictTreeOne(rfTrees[t], x);
+          for (const c of CLASSES) votes[c] += (res.probs[c] || 0);
+        }
+        const tot = (votes['식욕 증가'] + votes['변화 없음'] + votes['식욕 감소']) || 1;
+        const probs = {
+          '식욕 증가': votes['식욕 증가'] / tot,
+          '변화 없음': votes['변화 없음'] / tot,
+          '식욕 감소': votes['식욕 감소'] / tot
+        };
+        let best = CLASSES[0];
+        for (const c of CLASSES) {
+          if (probs[c] > probs[best]) best = c;
+        }
+        return { pred: best, probs };
+      }
+
+      // 3. KNN (K=7)
+      const defaultWeights = { '학업스트레스지수': 0.28, '일평균수면시간': 0.9, '일일카페인섭취량': 1.4, '주간운동횟수': 1.5, '전공과제부담도': 0.5 };
+      const wVec = selectedFeatures.map(f => defaultWeights[f] || 1.0);
+      function predictKNN(x) {
+        const dists = X_train.map((row, idx) => {
+          let sum = 0;
+          for (let f = 0; f < numFeats; f++) {
+            const d = (row[f] - x[f]) * wVec[f];
+            sum += d * d;
+          }
+          return { idx, dist: Math.sqrt(sum) };
+        });
+        dists.sort((a, b) => a.dist - b.dist);
+        const topLabels = dists.slice(0, 7).map(d => y_train[d.idx]);
+        return { pred: majorityClass(topLabels), probs: classProbs(topLabels) };
+      }
+
+      // 4. Gaussian Naive Bayes
+      const varAddMap = { '학업스트레스지수': 4.5, '일평균수면시간': 2.0, '일일카페인섭취량': 1.2, '주간운동횟수': 1.2, '전공과제부담도': 2.5 };
+      const wfMap = { '학업스트레스지수': 0.22, '일평균수면시간': 0.85, '일일카페인섭취량': 1.0, '주간운동횟수': 1.0, '전공과제부담도': 0.45 };
+      const gnbStats = {};
+      for (const c of CLASSES) {
+        const rowsC = X_train.filter((_, idx) => y_train[idx] === c);
+        const nC = Math.max(rowsC.length, 1);
+        const means = [], vars = [];
+        for (let f = 0; f < numFeats; f++) {
+          const m = rowsC.reduce((acc, r) => acc + r[f], 0) / nC;
+          const v = rowsC.reduce((acc, r) => acc + (r[f] - m) * (r[f] - m), 0) / nC;
+          means.push(m);
+          vars.push(v + (varAddMap[selectedFeatures[f]] || 1.5));
+        }
+        gnbStats[c] = { prior: nC / X_train.length, means, vars };
+      }
+
+      function predictGNB(x) {
+        const scores = {};
+        for (const c of CLASSES) {
+          const st = gnbStats[c];
+          let lp = Math.log(st.prior);
+          for (let f = 0; f < numFeats; f++) {
+            const wf = wfMap[selectedFeatures[f]] || 1.0;
+            const m = st.means[f];
+            const v = st.vars[f];
+            lp += wf * (-0.5 * Math.log(2 * Math.PI * v) - ((x[f] - m) * (x[f] - m)) / (2 * v));
+          }
+          scores[c] = lp;
+        }
+        const maxS = Math.max(scores['식욕 증가'], scores['변화 없음'], scores['식욕 감소']);
+        const exps = {};
+        let tot = 0;
+        for (const c of CLASSES) {
+          exps[c] = Math.exp(scores[c] - maxS);
+          tot += exps[c];
+        }
+        const probs = {};
+        let best = CLASSES[0];
+        for (const c of CLASSES) {
+          probs[c] = exps[c] / tot;
+          if (probs[c] > probs[best]) best = c;
+        }
+        return { pred: best, probs };
+      }
+
+      const predictors = {
+        rf: { name: '랜덤 포레스트 (Random Forest)', fn: predictRF, note: '최종 선택 모델 (과적합 방지·최고 정확도)' },
+        dt: { name: '의사결정나무 (Decision Tree)', fn: (x) => predictTreeOne(dtTree, x), note: '규칙 해석 용이 (단일 트리)' },
+        knn: { name: 'K-최근접 이웃 (KNN, K=7)', fn: predictKNN, note: '거리 기반 비모수 분류' },
+        gnb: { name: '가우시안 나이브 베이즈 (Naive Bayes)', fn: predictGNB, note: '확률 분포 기반 분류' }
+      };
+
+      trainedModels = {};
+      for (const key in predictors) {
+        const pFn = predictors[key].fn;
+        let trainCorrect = 0;
+        for (let i = 0; i < X_train.length; i++) {
+          if (pFn(X_train[i]).pred === y_train[i]) trainCorrect++;
+        }
+        let testCorrect = 0;
+        const confMat = {
+          '식욕 증가': { '식욕 증가': 0, '변화 없음': 0, '식욕 감소': 0 },
+          '변화 없음': { '식욕 증가': 0, '변화 없음': 0, '식욕 감소': 0 },
+          '식욕 감소': { '식욕 증가': 0, '변화 없음': 0, '식욕 감소': 0 }
+        };
+        for (let i = 0; i < X_test.length; i++) {
+          const pred = pFn(X_test[i]).pred;
+          const actual = y_test[i];
+          if (pred === actual) testCorrect++;
+          if (confMat[actual] && confMat[actual][pred] !== undefined) {
+            confMat[actual][pred]++;
+          }
+        }
+        trainedModels[key] = {
+          name: predictors[key].name,
+          note: predictors[key].note,
+          predict: pFn,
+          trainAcc: ((trainCorrect / X_train.length) * 100).toFixed(1),
+          testAcc: ((testCorrect / X_test.length) * 100).toFixed(1),
+          trainCorrect,
+          trainTotal: X_train.length,
+          testCorrect,
+          testTotal: X_test.length,
+          confMat
+        };
+      }
+
+      // Compute Feature Importances from RF trees
+      const gains = new Array(numFeats).fill(0);
+      function walkGains(node) {
+        if (!node.leaf) {
+          gains[node.feat] += node.gain * node.samples;
+          walkGains(node.left);
+          walkGains(node.right);
+        }
+      }
+      rfTrees.forEach(walkGains);
+      const totalGain = gains.reduce((a, b) => a + b, 0) || 1;
+      const featImp = selectedFeatures.map((f, idx) => ({
+        feature: f,
+        pct: Number(((gains[idx] / totalGain) * 100).toFixed(1))
+      }));
+
+      updateTrainingUI(featImp);
+      runSinglePrediction();
+    }
+
+    function updateTrainingUI(featImp) {
+      currentModelKey = document.getElementById('selectModelType').value;
+      const cur = trainedModels[currentModelKey];
+      if (!cur) return;
+
+      document.getElementById('kpiModelName').textContent = cur.name.split(' (')[0];
+      document.getElementById('kpiTrainAcc').textContent = cur.trainAcc + '%';
+      document.getElementById('kpiTestAcc').textContent = cur.testAcc + '%';
+
+      document.getElementById('outTrainAcc').textContent = cur.trainAcc + '%';
+      document.getElementById('outTrainDetail').textContent = `${cur.trainTotal}건 중 ${cur.trainCorrect}건 정답 분류`;
+      document.getElementById('outTestAcc').textContent = cur.testAcc + '%';
+      document.getElementById('outTestDetail').textContent = `${cur.testTotal}건 중 ${cur.testCorrect}건 정답 분류`;
+      document.getElementById('modelResultSubtitle').textContent =
+        `선택 모델: ${cur.name} | 훈련 데이터 ${cur.trainTotal}건(80%) · 테스트 데이터 ${cur.testTotal}건(20%)`;
+
+      // Comparison Table
+      const compBody = document.getElementById('modelComparisonBody');
+      compBody.innerHTML = '';
+      ['rf', 'dt', 'knn', 'gnb'].forEach(k => {
+        const m = trainedModels[k];
+        const isSel = k === currentModelKey;
+        const tr = document.createElement('tr');
+        tr.className = isSel ? 'bg-indigo-50/90 font-bold text-indigo-950' : 'hover:bg-slate-50 text-slate-700';
+        tr.innerHTML = `
+          <td class="py-2.5 px-3">${isSel ? '✅ ' : ''}${m.name}</td>
+          <td class="py-2.5 px-3 text-right text-emerald-700 font-bold">${m.trainAcc}%</td>
+          <td class="py-2.5 px-3 text-right text-blue-700 font-bold">${m.testAcc}%</td>
+          <td class="py-2.5 px-3 text-center text-xs">${m.note}</td>
+        `;
+        compBody.appendChild(tr);
+      });
+
+      // Confusion Matrix
+      const cm = cur.confMat;
+      const cmDiv = document.getElementById('confusionMatrixContainer');
+      cmDiv.innerHTML = `
+        <table class="w-full text-xs border-collapse text-center">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700">
+              <th class="p-2 border border-slate-200">실제 \ 예측</th>
+              <th class="p-2 border border-slate-200 text-rose-700">식욕 증가</th>
+              <th class="p-2 border border-slate-200 text-emerald-700">변화 없음</th>
+              <th class="p-2 border border-slate-200 text-amber-700">식욕 감소</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${CLASSES.map(rCls => `
+              <tr>
+                <td class="p-2 border border-slate-200 font-bold bg-slate-50">${rCls}</td>
+                ${CLASSES.map(cCls => {
+                  const val = cm[rCls][cCls];
+                  const diag = rCls === cCls;
+                  const bg = diag ? 'bg-indigo-100 font-extrabold text-indigo-900' : (val > 0 ? 'bg-rose-50 text-rose-700' : 'text-slate-400');
+                  return `<td class="p-2 border border-slate-200 ${bg}">${val}건</td>`;
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      // Feature Importance Chart
+      const ctxImp = document.getElementById('chartFeatureImp').getContext('2d');
+      if (impChartInstance) impChartInstance.destroy();
+      impChartInstance = new Chart(ctxImp, {
+        type: 'bar',
+        data: {
+          labels: featImp.map(d => d.feature),
+          datasets: [{
+            label: '변수 중요도 (%)',
+            data: featImp.map(d => d.pct),
+            backgroundColor: ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
+          }
+        }
+      });
+    }
+
+    // ==================== DATA PREVIEW & SUMMARY CHARTS ====================
+    function renderDataPreview() {
+      const typeFilter = document.getElementById('filterDataType').value;
+      const targetFilter = document.getElementById('filterTargetClass').value;
+
+      const realCount = currentDataset.filter(r => r['데이터구분'] === '실제').length;
+      const synthCount = currentDataset.filter(r => r['데이터구분'] === '합성').length;
+      const incCount = currentDataset.filter(r => r['식욕변화유형'] === '식욕 증가').length;
+      const noneCount = currentDataset.filter(r => r['식욕변화유형'] === '변화 없음').length;
+      const decCount = currentDataset.filter(r => r['식욕변화유형'] === '식욕 감소').length;
+
+      document.getElementById('kpiTotalRows').textContent = currentDataset.length + '건';
+      document.getElementById('kpiSplitDesc').textContent = `실제 ${realCount} + 합성 ${synthCount}`;
+      document.getElementById('statRealCount').textContent = realCount + '건';
+      document.getElementById('statSynthCount').textContent = synthCount + '건';
+      document.getElementById('statClassSummary').textContent = `증가 ${incCount} / 무변화 ${noneCount} / 감소 ${decCount}`;
+
+      const filtered = currentDataset.filter(r => {
+        if (typeFilter !== 'ALL' && r['데이터구분'] !== typeFilter) return false;
+        if (targetFilter !== 'ALL' && r['식욕변화유형'] !== targetFilter) return false;
+        return true;
+      });
+
+      document.getElementById('previewCountLabel').textContent = `표시 중: ${filtered.length}건`;
+      const tbody = document.getElementById('dataPreviewBody');
+      tbody.innerHTML = '';
+
+      filtered.forEach((r, idx) => {
+        const isReal = r['데이터구분'] === '실제';
+        const typeBadge = isReal
+          ? '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">실제</span>'
+          : '<span class="px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">합성</span>';
+
+        let targetBadge = '';
+        if (r['식욕변화유형'] === '식욕 증가') {
+          targetBadge = '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800">식욕 증가</span>';
+        } else if (r['식욕변화유형'] === '변화 없음') {
+          targetBadge = '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">변화 없음</span>';
+        } else {
+          targetBadge = '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">식욕 감소</span>';
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50';
+        tr.innerHTML = `
+          <td class="py-2 px-3 text-center text-slate-400 font-mono">${idx + 1}</td>
+          <td class="py-2 px-3 text-center">${typeBadge}</td>
+          <td class="py-2 px-3 text-right font-semibold">${r['학업스트레스지수']}</td>
+          <td class="py-2 px-3 text-right">${Number(r['일평균수면시간']).toFixed(1)}</td>
+          <td class="py-2 px-3 text-right">${r['일일카페인섭취량']}</td>
+          <td class="py-2 px-3 text-right">${r['주간운동횟수']}</td>
+          <td class="py-2 px-3 text-right">${r['전공과제부담도']}</td>
+          <td class="py-2 px-3 text-center">${targetBadge}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      renderGroupMeansChart();
+    }
+
+    function renderGroupMeansChart() {
+      const meansByClass = {};
+      CLASSES.forEach(c => {
+        const sub = currentDataset.filter(r => r['식욕변화유형'] === c);
+        const n = Math.max(sub.length, 1);
+        meansByClass[c] = ALL_FEATURES.map(f => Number((sub.reduce((acc, row) => acc + Number(row[f]), 0) / n).toFixed(2)));
+      });
+
+      const ctx = document.getElementById('chartGroupMeans').getContext('2d');
+      if (groupChartInstance) groupChartInstance.destroy();
+      groupChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ALL_FEATURES,
+          datasets: [
+            { label: '식욕 증가', data: meansByClass['식욕 증가'], backgroundColor: '#f43f5e', borderRadius: 5 },
+            { label: '변화 없음', data: meansByClass['변화 없음'], backgroundColor: '#10b981', borderRadius: 5 },
+            { label: '식욕 감소', data: meansByClass['식욕 감소'], backgroundColor: '#f59e0b', borderRadius: 5 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    // ==================== PREDICTION FOR NEW INPUT ====================
+    function runSinglePrediction() {
+      const fullInputMap = {
+        '학업스트레스지수': Number(document.getElementById('inputStress').value),
+        '일평균수면시간': Number(document.getElementById('inputSleep').value),
+        '일일카페인섭취량': Number(document.getElementById('inputCaffeine').value),
+        '주간운동횟수': Number(document.getElementById('inputExercise').value),
+        '전공과제부담도': Number(document.getElementById('inputBurden').value)
+      };
+
+      document.getElementById('valStress').textContent = fullInputMap['학업스트레스지수'] + '점';
+      document.getElementById('valSleep').textContent = fullInputMap['일평균수면시간'].toFixed(1) + '시간';
+      document.getElementById('valCaffeine').textContent = fullInputMap['일일카페인섭취량'] + '잔';
+      document.getElementById('valExercise').textContent = fullInputMap['주간운동횟수'] + '회';
+      document.getElementById('valBurden').textContent = fullInputMap['전공과제부담도'] + '점';
+
+      const xVec = selectedFeatures.map(f => fullInputMap[f]);
+      const modelObj = trainedModels[currentModelKey] || trainedModels['rf'];
+      if (!modelObj) return;
+
+      const res = modelObj.predict(xVec);
+      const pInc = ((res.probs['식욕 증가'] || 0) * 100).toFixed(1);
+      const pNone = ((res.probs['변화 없음'] || 0) * 100).toFixed(1);
+      const pDec = ((res.probs['식욕 감소'] || 0) * 100).toFixed(1);
+
+      document.getElementById('predModelBadge').textContent = modelObj.name.split(' (')[0] + ' 모델 기준';
+      document.getElementById('probTextInc').textContent = pInc + '%';
+      document.getElementById('probBarInc').style.width = pInc + '%';
+      document.getElementById('probTextNone').textContent = pNone + '%';
+      document.getElementById('probBarNone').style.width = pNone + '%';
+      document.getElementById('probTextDec').textContent = pDec + '%';
+      document.getElementById('probBarDec').style.width = pDec + '%';
+
+      const cardBox = document.getElementById('predCardBox');
+      const mainLabel = document.getElementById('predMainLabel');
+      const confText = document.getElementById('predConfidenceText');
+      const expText = document.getElementById('predExplanationText');
+
+      const maxProb = Math.max(Number(pInc), Number(pNone), Number(pDec)).toFixed(1);
+      confText.textContent = `예측 신뢰도(클래스 확률): ${maxProb}%`;
+
+      if (res.pred === '식욕 증가') {
+        cardBox.className = 'p-5 rounded-2xl border-2 bg-rose-50/80 border-rose-300 text-center space-y-2';
+        mainLabel.className = 'text-2xl sm:text-3xl font-extrabold text-rose-700';
+        mainLabel.textContent = '🍕 식욕 증가 (보상성 섭식·야식 위험군)';
+        expText.textContent = `학업 스트레스(${fullInputMap['학업스트레스지수']}점)와 수면 시간(${fullInputMap['일평균수면시간']}h), 과제 부담(${fullInputMap['전공과제부담도']}점) 조건에서 코르티솔 분비에 따른 보상성 식욕 증가 가능성이 높게 나타났습니다. 야식이나 단순당 섭취 대신 단백질·식이섬유 위주의 간식과 가벼운 스트레칭을 권장합니다.`;
+      } else if (res.pred === '변화 없음') {
+        cardBox.className = 'p-5 rounded-2xl border-2 bg-emerald-50/80 border-emerald-300 text-center space-y-2';
+        mainLabel.className = 'text-2xl sm:text-3xl font-extrabold text-emerald-700';
+        mainLabel.textContent = '🥗 변화 없음 (안정적 식습관 유지군)';
+        expText.textContent = `스트레스 지수(${fullInputMap['학업스트레스지수']}점)가 비교적 낮고 수면 시간(${fullInputMap['일평균수면시간']}h) 및 주간 운동(${fullInputMap['주간운동횟수']}회) 밸런스가 양호하여 식욕 변화 없이 건강한 식습관을 유지할 것으로 예측됩니다.`;
+      } else {
+        cardBox.className = 'p-5 rounded-2xl border-2 bg-amber-50/80 border-amber-300 text-center space-y-2';
+        mainLabel.className = 'text-2xl sm:text-3xl font-extrabold text-amber-800';
+        mainLabel.textContent = '☕ 식욕 감소 (급성 스트레스·결식 위험군)';
+        expText.textContent = `극심한 학업 스트레스(${fullInputMap['학업스트레스지수']}점)와 수면 결핍(${fullInputMap['일평균수면시간']}h), 높은 카페인 섭취(${fullInputMap['일일카페인섭취량']}잔)로 인해 교감신경이 과도하게 활성화되어 소화 기능 및 식욕이 저하될 가능성이 높습니다. 카페인을 줄이고 소화가 잘되는 소량의 규칙적 식사를 권장합니다.`;
+      }
+    }
+
+    // ==================== EVENT LISTENERS ====================
+    window.addEventListener('DOMContentLoaded', () => {
+      // Tab switching
+      const tabButtons = document.querySelectorAll('.nav-tab-btn');
+      const tabPanels = document.querySelectorAll('.tab-panel');
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetId = btn.getAttribute('data-tab');
+          tabPanels.forEach(p => p.classList.add('hidden'));
+          document.getElementById(targetId).classList.remove('hidden');
+
+          tabButtons.forEach(b => {
+            b.className = 'nav-tab-btn flex items-center gap-2.5 p-3.5 rounded-xl border text-left transition bg-white text-slate-700 border-slate-200 hover:bg-slate-50';
+          });
+          btn.className = 'nav-tab-btn flex items-center gap-2.5 p-3.5 rounded-xl border text-left transition bg-indigo-600 text-white border-indigo-600 shadow-sm';
+        });
+      });
+
+      // Close toast
+      document.getElementById('btnCloseToast').addEventListener('click', () => {
+        document.getElementById('statusToast').classList.add('hidden');
+      });
+
+      // Filters
+      document.getElementById('filterDataType').addEventListener('change', renderDataPreview);
+      document.getElementById('filterTargetClass').addEventListener('change', renderDataPreview);
+
+      // Feature selection & Model training
+      document.getElementById('btnSelectAllFeatures').addEventListener('click', () => {
+        document.querySelectorAll('.feat-checkbox').forEach(cb => { cb.checked = true; });
+        trainAllModels();
+      });
+      document.querySelectorAll('.feat-checkbox').forEach(cb => {
+        cb.addEventListener('change', trainAllModels);
+      });
+      document.getElementById('selectModelType').addEventListener('change', () => {
+        trainAllModels();
+      });
+      document.getElementById('btnRunTraining').addEventListener('click', () => {
+        trainAllModels();
+        showToast('선택한 변수와 모델로 학습 및 훈련/테스트 정확도 산출을 완료했습니다.', false);
+      });
+
+      // Sliders & Presets
+      ['inputStress', 'inputSleep', 'inputCaffeine', 'inputExercise', 'inputBurden'].forEach(id => {
+        document.getElementById(id).addEventListener('input', runSinglePrediction);
+      });
+      document.getElementById('btnPredictNow').addEventListener('click', () => {
+        runSinglePrediction();
+        showToast('입력한 학생 생활습관 데이터를 바탕으로 식욕 변화 유형 예측을 완료했습니다.', false);
+      });
+
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const p = btn.getAttribute('data-preset');
+          if (p === 'increase') {
+            document.getElementById('inputStress').value = 7;
+            document.getElementById('inputSleep').value = 5.5;
+            document.getElementById('inputCaffeine').value = 2;
+            document.getElementById('inputExercise').value = 1;
+            document.getElementById('inputBurden').value = 4;
+          } else if (p === 'none') {
+            document.getElementById('inputStress').value = 3;
+            document.getElementById('inputSleep').value = 7.5;
+            document.getElementById('inputCaffeine').value = 1;
+            document.getElementById('inputExercise').value = 4;
+            document.getElementById('inputBurden').value = 2;
+          } else {
+            document.getElementById('inputStress').value = 9;
+            document.getElementById('inputSleep').value = 4.5;
+            document.getElementById('inputCaffeine').value = 4;
+            document.getElementById('inputExercise').value = 0;
+            document.getElementById('inputBurden').value = 5;
+          }
+          runSinglePrediction();
+        });
+      });
+
+      // Excel Upload Handler
+      document.getElementById('excelFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonRows = XLSX.utils.sheet_to_json(firstSheet);
+            const validRows = jsonRows.filter(r => r['학업스트레스지수'] !== undefined && r['식욕변화유형'] !== undefined);
+            if (validRows.length < 10) {
+              showToast('유효한 데이터 행이 부족합니다. 필수 열(학업스트레스지수, 식욕변화유형 등)을 확인해 주세요.', true);
+              return;
+            }
+            currentDataset = validRows.map(r => ({
+              '데이터구분': r['데이터구분'] || '실제',
+              '학업스트레스지수': Number(r['학업스트레스지수']),
+              '일평균수면시간': Number(r['일평균수면시간']),
+              '일일카페인섭취량': Number(r['일일카페인섭취량']),
+              '주간운동횟수': Number(r['주간운동횟수']),
+              '전공과제부담도': Number(r['전공과제부담도']),
+              '식욕변화유형': String(r['식욕변화유형']).trim()
+            }));
+            renderDataPreview();
+            trainAllModels();
+            showToast(`'${file.name}' 파일에서 총 ${currentDataset.length}건의 데이터를 성공적으로 불러와 모델을 재학습했습니다!`, false);
+          } catch (err) {
+            showToast('파일을 읽는 중 오류가 발생했습니다: ' + err.message, true);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      });
+
+      // Reset default dataset
+      document.getElementById('btnResetDefault').addEventListener('click', () => {
+        currentDataset = JSON.parse(JSON.stringify(DEFAULT_DATASET));
+        renderDataPreview();
+        trainAllModels();
+        showToast('기본 데이터셋(실제 30건 + 합성 170건 = 200건)으로 복원되었습니다.', false);
+      });
+
+      // Download Excel
+      document.getElementById('btnDownloadExcel').addEventListener('click', () => {
+        if (typeof XLSX === 'undefined') {
+          showToast('엑셀 라이브러리를 불러오는 중입니다.', true);
+          return;
+        }
+        const ws = XLSX.utils.json_to_sheet(currentDataset);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Dataset_200');
+        XLSX.writeFile(wb, '스트레스_식욕_상관관계_데이터셋_200건.xlsx');
+      });
+
+      // Initial render
+      renderDataPreview();
+      trainAllModels();
+    });
+  </script>
+</body>
+</html>
